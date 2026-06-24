@@ -21,7 +21,13 @@
       "Round-trips as standard SVG/PNG/XML with embedded draw.io metadata"
     ],
     "fileTypes": [".drawio", ".dio", ".drawio.svg", ".drawio.png"],
-    "repositoryUrl": "https://github.com/adok-one/nimbalyst-drawio"
+    "repositoryUrl": "https://github.com/adok-one/nimbalyst-drawio",
+    "screenshots": [
+      {
+        "alt": "Client to API to database architecture diagram open in the draw.io editor",
+        "fileToOpen": "samples/demo.drawio"
+      }
+    ]
   },
   "permissions": {
     "filesystem": true,
