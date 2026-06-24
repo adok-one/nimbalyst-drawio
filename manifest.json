@@ -1,0 +1,74 @@
+{
+  "id": "com.altusnova.drawio",
+  "name": "Draw.io Diagrams",
+  "version": "0.5.2",
+  "description": "Edit and embed draw.io diagrams (.drawio, .drawio.svg, .drawio.png) in markdown",
+  "author": "Altus Nova",
+  "main": "dist/index.js",
+  "styles": "dist/index.css",
+  "apiVersion": "1.0.0",
+  "defaultEnabled": true,
+  "marketplace": {
+    "categories": ["diagrams"],
+    "tags": ["drawio", "draw.io", "diagram", "diagrams.net", "flowchart", "architecture", "uml", "mxgraph"],
+    "icon": "account_tree",
+    "tagline": "Edit and embed draw.io diagrams in your notes",
+    "longDescription": "Create, edit, and embed [draw.io](https://www.diagrams.net/) diagrams without leaving Nimbalyst. Open `.drawio`, `.drawio.svg`, and `.drawio.png` files in a full draw.io canvas, drop or paste diagrams straight into markdown, or insert a new diagram with a slash command. Diagrams are saved as standard files with embedded draw.io metadata, so they stay compatible with GitHub, VS Code, and the Confluence draw.io pipeline.",
+    "highlights": [
+      "Full draw.io canvas as a custom editor and an inline edit overlay",
+      "Insert diagrams with the /Draw.io Diagram slash command",
+      "Drag-drop and paste .drawio, .drawio.svg, and .drawio.png into markdown",
+      "Round-trips as standard SVG/PNG/XML with embedded draw.io metadata"
+    ],
+    "fileTypes": [".drawio", ".dio", ".drawio.svg", ".drawio.png"],
+    "repositoryUrl": "https://github.com/adok-one/nimbalyst-drawio"
+  },
+  "permissions": {
+    "filesystem": true,
+    "network": true
+  },
+  "contributions": {
+    "customEditors": [
+      {
+        "filePatterns": ["*.drawio", "*.dio", "*.drawio.svg", "*.drawio.png"],
+        "displayName": "Draw.io Editor",
+        "component": "DrawioEditor",
+        "supportsSourceMode": false,
+        "supportsDiffMode": false,
+        "showDocumentHeader": true
+      }
+    ],
+    "fileIcons": {
+      "*.drawio": "account_tree",
+      "*.dio": "account_tree",
+      "*.drawio.svg": "account_tree",
+      "*.drawio.png": "account_tree"
+    },
+    "newFileMenu": [
+      {
+        "extension": ".drawio.svg",
+        "displayName": "Draw.io Diagram (SVG)",
+        "icon": "account_tree",
+        "defaultContent": "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" width=\"1px\" height=\"1px\" content=\"&lt;mxfile host=&quot;app.diagrams.net&quot; agent=&quot;Nimbalyst Draw.io&quot; version=&quot;24.7.0&quot;&gt;&lt;diagram id=&quot;diagram-1&quot; name=&quot;Page-1&quot;&gt;&lt;mxGraphModel dx=&quot;1000&quot; dy=&quot;600&quot; grid=&quot;1&quot; gridSize=&quot;10&quot; guides=&quot;1&quot; tooltips=&quot;1&quot; connect=&quot;1&quot; arrows=&quot;1&quot; fold=&quot;1&quot; page=&quot;1&quot; pageScale=&quot;1&quot; pageWidth=&quot;850&quot; pageHeight=&quot;1100&quot; math=&quot;0&quot; shadow=&quot;0&quot;&gt;&lt;root&gt;&lt;mxCell id=&quot;0&quot;/&gt;&lt;mxCell id=&quot;1&quot; parent=&quot;0&quot;/&gt;&lt;/root&gt;&lt;/mxGraphModel&gt;&lt;/diagram&gt;&lt;/mxfile&gt;\"><defs/><g/></svg>"
+      },
+      {
+        "extension": ".drawio",
+        "displayName": "Draw.io Diagram (XML)",
+        "icon": "account_tree",
+        "defaultContent": "<mxfile host=\"app.diagrams.net\"><diagram id=\"blank\" name=\"Page-1\"><mxGraphModel dx=\"1000\" dy=\"600\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"850\" pageHeight=\"1100\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel></diagram></mxfile>"
+      }
+    ],
+    "slashCommands": [
+      {
+        "id": "drawio.insert",
+        "title": "Draw.io Diagram",
+        "description": "Create a draw.io diagram (.drawio.svg) in assets/ and embed it in this document",
+        "icon": "account_tree",
+        "keywords": ["drawio", "draw.io", "diagram", "diagrams.net", "flowchart", "architecture"],
+        "handler": "insertDrawioDiagram"
+      }
+    ],
+    "transformers": ["DRAWIO_IMAGE_TRANSFORMER"],
+    "lexicalExtensions": ["DrawioLexicalExtension"]
+  }
+}
