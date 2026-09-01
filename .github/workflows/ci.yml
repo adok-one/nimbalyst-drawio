@@ -61,11 +61,13 @@ jobs:
       - run: npm run pack:nimext
       - run: npm run validate:pack
 
-      - name: Keep this platform's checksum for comparison
+      # The archive itself, not just its checksum: when two platforms disagree, the next
+      # question is always WHICH entry differs, and only the archives can answer it.
+      - name: Keep this platform's archive for comparison
         uses: actions/upload-artifact@v4
         with:
-          name: checksum-${{ matrix.os }}-node${{ matrix.node }}
-          path: release/*.sha256
+          name: archive-${{ matrix.os }}-node${{ matrix.node }}
+          path: release/*
           if-no-files-found: error
 
   # The packer claims the archive is deterministic -- fixed entry timestamps, fixed modes --
@@ -79,25 +81,42 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: checksum-*
-          path: checksums
+          pattern: archive-*
+          path: archives
 
-      - name: Compare every checksum against the first
+      - name: Compare the archives entry by entry
         shell: bash
         run: |
-          set -euo pipefail
-          # One hash per platform, printed with its origin so a mismatch names the odd one.
-          found=$(find checksums -name '*.sha256' | sort)
-          test -n "$found" || { echo "no checksums were uploaded"; exit 1; }
-          for file in $found; do
-            printf '%s  %s\n' "$(awk '{print $1}' "$file")" "$(dirname "$file")"
+          set -uo pipefail
+
+          # Per-entry hashes for every platform's archive, so a mismatch names the file that
+          # differs rather than only the total.
+          for dir in archives/*/; do
+            name=$(basename "$dir")
+            mkdir -p "unpacked/$name"
+            unzip -q -o "$dir"/*.nimext -d "unpacked/$name"
+            (cd "unpacked/$name" && find . -type f | sort | xargs shasum -a 256) > "listing-$name.txt"
           done
-          unique=$(for file in $found; do awk '{print $1}' "$file"; done | sort -u | wc -l)
-          if [ "$unique" -ne 1 ]; then
-            echo
+
+          echo "== whole-archive checksums =="
+          for file in archives/*/*.sha256; do
+            printf '%s  %s\n' "$(awk '{print $1}' "$file")" "$(basename "$(dirname "$file")")"
+          done
+
+          first=$(ls listing-*.txt | head -1)
+          status=0
+          for listing in listing-*.txt; do
+            if ! diff -q "$first" "$listing" >/dev/null; then
+              status=1
+              echo
+              echo "== $listing differs from $first =="
+              diff "$first" "$listing" || true
+            fi
+          done
+
+          echo
+          if [ "$status" -ne 0 ]; then
             echo "The same commit produced different archives on different platforms."
-            echo "Usually that is a line-ending rewrite on checkout (core.autocrlf)."
             exit 1
           fi
-          echo
           echo "Every platform built the same archive."
