@@ -10,8 +10,16 @@
     "noEmit": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    // One test imports a build script (plain .mjs) to check the archive contents against
+    // the same list the packer uses.
+    "allowJs": true,
+    "checkJs": false,
+    // No ambient type packages. Node's globals reach this program anyway, through the
+    // Vitest declarations the tests import -- which is why the renderer boundary is enforced
+    // by tsconfig.src.json, in a program the tests are not part of.
+    "types": []
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "tests"],
+  "exclude": ["node_modules", "dist", "release", "coverage"]
 }

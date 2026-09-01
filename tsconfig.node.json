@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Node globals belong to the build tooling and nowhere else. The extension itself runs
+    // in the host's renderer: a `process` or a `Buffer` reaching `src/` is a mistake, and it
+    // is one the main config can only catch by not knowing those names.
+    "types": ["node"],
+    "lib": ["ES2022"]
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "scripts/**/*.mjs"]
+}

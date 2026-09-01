@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The check that actually holds the line. `types: []` in the base config is not enough
+    // on its own: the tests import Vitest, whose own declarations reference @types/node, and
+    // that pulls `process`, `Buffer` and the rest back into the whole program. Checking
+    // `src` in a program the tests are not part of is what keeps them out.
+    "types": []
+  },
+  "include": ["src"]
+}

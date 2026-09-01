@@ -13,15 +13,32 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
-    "validate": "node scripts/validate.mjs"
+    "typecheck": "tsc -p tsconfig.src.json --noEmit && tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage.enabled --coverage.provider=v8 --coverage.reporter=text",
+    "validate": "node scripts/validate.mjs",
+    "pack:nimext": "npm run build && node scripts/pack-nimext.mjs",
+    "validate:pack": "node scripts/validate-pack.mjs",
+    "bump:version": "node scripts/bump-version.mjs"
   },
   "devDependencies": {
+    "@lexical/markdown": "^0.44.0",
+    "@lexical/utils": "^0.44.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^4.4.1",
+    "@vitest/coverage-v8": "^3.2.7",
+    "adm-zip": "^0.6.0",
+    "jsdom": "^29.1.1",
+    "lexical": "^0.44.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.7"
   }
 }
