@@ -1,6 +1,6 @@
 {
   "name": "nimbalyst-drawio",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "description": "Edit and embed draw.io diagrams (.drawio, .drawio.svg, .drawio.png) in Nimbalyst",
   "type": "module",
