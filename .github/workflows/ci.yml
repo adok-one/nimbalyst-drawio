@@ -84,13 +84,27 @@ jobs:
           pattern: archive-*
           path: archives
 
-      - name: Compare the archives entry by entry
+      - name: Compare the archives
         shell: bash
         run: |
           set -uo pipefail
 
-          # Per-entry hashes for every platform's archive, so a mismatch names the file that
-          # differs rather than only the total.
+          echo "== whole-archive checksums =="
+          for file in archives/*/*.sha256; do
+            printf '%s  %s\n' "$(awk '{print $1}' "$file")" "$(basename "$(dirname "$file")")"
+          done
+          totals=$(for file in archives/*/*.sha256; do awk '{print $1}' "$file"; done | sort -u | wc -l)
+
+          if [ "$totals" -eq 1 ]; then
+            echo
+            echo "Every platform built the same archive."
+            exit 0
+          fi
+
+          # They differ. Per-entry hashes say whether the CONTENTS differ -- a line-ending
+          # rewrite on checkout, a build that is not reproducible -- or whether the contents
+          # match and only the zip container's own bytes differ, which is a header field
+          # adm-zip fills in from the machine it runs on.
           for dir in archives/*/; do
             name=$(basename "$dir")
             mkdir -p "unpacked/$name"
@@ -98,16 +112,11 @@ jobs:
             (cd "unpacked/$name" && find . -type f | sort | xargs shasum -a 256) > "listing-$name.txt"
           done
 
-          echo "== whole-archive checksums =="
-          for file in archives/*/*.sha256; do
-            printf '%s  %s\n' "$(awk '{print $1}' "$file")" "$(basename "$(dirname "$file")")"
-          done
-
           first=$(ls listing-*.txt | head -1)
-          status=0
+          contents_differ=0
           for listing in listing-*.txt; do
             if ! diff -q "$first" "$listing" >/dev/null; then
-              status=1
+              contents_differ=1
               echo
               echo "== $listing differs from $first =="
               diff "$first" "$listing" || true
@@ -115,8 +124,13 @@ jobs:
           done
 
           echo
-          if [ "$status" -ne 0 ]; then
-            echo "The same commit produced different archives on different platforms."
-            exit 1
+          echo "The same commit produced different archives on different platforms."
+          if [ "$contents_differ" -eq 0 ]; then
+            echo "The entry CONTENTS are identical everywhere, so this is the zip container:"
+            echo "a header field written from the host OS. See MADE_BY_UNIX_ZIP20 in"
+            echo "scripts/pack-nimext.mjs, which pins the one adm-zip picks per platform."
+          else
+            echo "The entry contents differ -- see the diff above. The usual cause is a"
+            echo "line-ending rewrite on checkout (core.autocrlf)."
           fi
-          echo "Every platform built the same archive."
+          exit 1

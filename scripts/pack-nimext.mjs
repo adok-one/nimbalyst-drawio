@@ -32,6 +32,19 @@ const PACKAGE_BASENAME = 'nimbalyst-drawio';
  */
 const FIXED_TIME = new Date(Date.UTC(2020, 0, 1, 0, 0, 0));
 
+/**
+ * "Version made by": zip format 2.0, host system 3 (Unix). adm-zip picks this from the
+ * machine it runs on -- `_verMade |= Utils.isWin ? 0x0a00 : 0x0300` -- so the same files
+ * packed on Windows and on Linux produce archives that differ in this one header field and
+ * therefore in their checksum. CI caught exactly that: identical entry contents on both,
+ * different totals.
+ *
+ * Pinned to the Unix value because that is what the release runner produces and what every
+ * archive published so far already carries. Nothing reads it here: the host extracts by
+ * entry name.
+ */
+const MADE_BY_UNIX_ZIP20 = 0x0314;
+
 const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 
@@ -74,6 +87,7 @@ const zip = new AdmZip();
 for (const entry of entries) {
   const added = zip.addFile(entry.path, await readFile(join(root, entry.path)), '', MODE_FILE);
   added.header.time = FIXED_TIME;
+  added.header.made = MADE_BY_UNIX_ZIP20;
 }
 
 const archiveName = `${PACKAGE_BASENAME}-${manifest.version}.nimext`;
