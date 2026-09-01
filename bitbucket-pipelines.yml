@@ -66,7 +66,7 @@ definitions:
           - npm run validate:pack
           # Downloads rather than pipeline artifacts: artifacts expire, and the shelf people
           # install from must still hold v0.5.2 when v0.9.0 is current.
-          - export ARCHIVE="nimbalyst-drawio-$VERSION.nimext"
+          - export ARCHIVE="eai-nimbalyst-draw-io-plugin-$VERSION.nimext"
           - >
             curl -sS --fail-with-body -X POST
             -H "Authorization: Bearer $BB_DOWNLOADS_TOKEN"

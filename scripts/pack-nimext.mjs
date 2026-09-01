@@ -22,8 +22,20 @@ import { MODE_FILE, OPTIONAL_PACKAGE_FILES, requiredPackageFiles } from './packa
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The archive's base name; it follows the repository, which is what a Downloads page shows. */
-const PACKAGE_BASENAME = 'nimbalyst-drawio';
+/**
+ * The archive's base name. It follows the name of the repository whose Downloads page the
+ * archive lands on -- the Bitbucket mirror -- because that is what somebody scanning that page
+ * sees beside every other artefact of ours. That is deliberately NOT this project's own name:
+ * the source of truth is `adok-one/nimbalyst-drawio` on GitHub, and the archive was called
+ * after it until 2026-09-01.
+ *
+ * This constant is where the name is DECIDED; three other places have to agree with it, and
+ * they are all in other repositories -- the component tables of `install/install.sh` and
+ * `install/install.ps1` in eai-flow, and `Extensions::Registry` in decisions-system, which
+ * matches shelf files by this basename to decide what it hands out. Changing it here alone
+ * makes this extension invisible to all three.
+ */
+const PACKAGE_BASENAME = 'eai-nimbalyst-draw-io-plugin';
 
 /**
  * Every zip entry is stamped with this instead of its mtime. A checksum that changes because

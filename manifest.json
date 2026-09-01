@@ -1,7 +1,7 @@
 {
   "id": "com.altusnova.drawio",
   "name": "Draw.io Diagrams",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Edit and embed draw.io diagrams (.drawio, .drawio.svg, .drawio.png) in markdown",
   "author": "Altus Nova",
   "main": "dist/index.js",

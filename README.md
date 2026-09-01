@@ -113,7 +113,7 @@ npm run test:coverage # coverage over src/, with thresholds
 npm run build         # production bundle -> dist/
 npm run dev           # rebuild on change (vite --watch)
 npm run validate      # check manifest + built entry
-npm run pack:nimext   # build, then release/nimbalyst-drawio-<version>.nimext
+npm run pack:nimext   # build, then release/eai-nimbalyst-draw-io-plugin-<version>.nimext
 npm run validate:pack # open that archive again, with the host's own zip reader
 ```
 
@@ -173,7 +173,7 @@ npm run bump:version -- patch   # manifest.json and package.json together
 ```
 
 Commit, then push the tag `v<version>` to the Bitbucket mirror: the pipeline runs the
-gates, packs the archive and publishes `nimbalyst-drawio-<version>.nimext` plus its
+gates, packs the archive and publishes `eai-nimbalyst-draw-io-plugin-<version>.nimext` plus its
 `.sha256` to that repository's Downloads. The tag has to match `manifest.json` — the
 pipeline refuses to publish otherwise. It needs one repository variable,
 `BB_DOWNLOADS_TOKEN`, an access token with `repository:write`.

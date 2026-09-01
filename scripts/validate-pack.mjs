@@ -21,7 +21,7 @@ const manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'))
 
 const archivePath = process.argv[2]
   ? resolve(process.cwd(), process.argv[2])
-  : join(root, 'release', `nimbalyst-drawio-${manifest.version}.nimext`);
+  : join(root, 'release', `eai-nimbalyst-draw-io-plugin-${manifest.version}.nimext`);
 
 const archive = await readFile(archivePath).catch(() => null);
 if (!archive) {
