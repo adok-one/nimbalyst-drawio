@@ -1,0 +1,103 @@
+# The gates, on the three things they can disagree about: the operating system, the Node
+# version, and how git wrote the files out.
+#
+# The twin of `bitbucket-pipelines.yml`, and deliberately not a translation. Bitbucket hosts
+# Linux Docker and nothing else -- Windows there needs a self-hosted runner nobody has
+# attached -- so that file answers "does it work on Linux" and this one answers "does it work
+# anywhere". The release step stays on Bitbucket, because that is where the archive is
+# published; this file never publishes anything.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gates:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing must not hide the other's answer -- that is the whole point of
+      # running both.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+
+    steps:
+      # BEFORE the checkout, and that is not a detail. Git for Windows rewrites line endings
+      # on checkout by default; the packer hashes the bytes it reads off disk, so a CRLF
+      # checkout would produce a different archive from the same commit. Unlike Bitbucket,
+      # where the clone happens before any script can run, here there is a place to say so.
+      - name: Leave line endings as they were committed
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # Recorded on purpose: when a platform-only failure turns up, the first question is
+      # always which versions it was.
+      - run: node --version && npm --version
+
+      - run: npm ci
+
+      # Granular rather than one command: when this goes red, the line that failed is the
+      # diagnosis. The order matches `bitbucket-pipelines.yml` and CLAUDE.md's first
+      # Definition-of-Done item; `validate` comes after `build` because it reads
+      # `manifest.main`, which the build produces.
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run validate
+
+      # The archive is built here but never published: what is being checked is that it can
+      # be built at all on this platform, and that the host's own zip reader opens it.
+      - run: npm run pack:nimext
+      - run: npm run validate:pack
+
+      - name: Keep this platform's checksum for comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.os }}-node${{ matrix.node }}
+          path: release/*.sha256
+          if-no-files-found: error
+
+  # The packer claims the archive is deterministic -- fixed entry timestamps, fixed modes --
+  # which is what makes "is this the file CI built?" a question `shasum -c` can answer. A
+  # claim nothing checks is a claim that quietly stops being true, and the way it stops being
+  # true is a file whose bytes differ per platform.
+  same-archive-everywhere:
+    name: The archive is byte-identical on every platform
+    runs-on: ubuntu-latest
+    needs: gates
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: checksum-*
+          path: checksums
+
+      - name: Compare every checksum against the first
+        shell: bash
+        run: |
+          set -euo pipefail
+          # One hash per platform, printed with its origin so a mismatch names the odd one.
+          found=$(find checksums -name '*.sha256' | sort)
+          test -n "$found" || { echo "no checksums were uploaded"; exit 1; }
+          for file in $found; do
+            printf '%s  %s\n' "$(awk '{print $1}' "$file")" "$(dirname "$file")"
+          done
+          unique=$(for file in $found; do awk '{print $1}' "$file"; done | sort -u | wc -l)
+          if [ "$unique" -ne 1 ]; then
+            echo
+            echo "The same commit produced different archives on different platforms."
+            echo "Usually that is a line-ending rewrite on checkout (core.autocrlf)."
+            exit 1
+          fi
+          echo
+          echo "Every platform built the same archive."
