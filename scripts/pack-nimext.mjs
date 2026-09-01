@@ -26,11 +26,23 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE_BASENAME = 'nimbalyst-drawio';
 
 /**
- * Every zip entry is stamped with this instead of its mtime. A checksum that changes
- * because a file was rebuilt at a different second cannot be compared against anything.
- * (1980 is the zip format's floor; the date itself carries no meaning.)
+ * Every zip entry is stamped with this instead of its mtime. A checksum that changes because
+ * a file was rebuilt at a different second cannot be compared against anything.
+ *
+ * The RAW DOS value, not a `Date`. Zip stores the timestamp as local wall-clock with no zone
+ * attached, and adm-zip converts a `Date` with `getHours()` and friends -- so a `Date` fixed
+ * in UTC is written differently by every machine that is not on UTC, and the archive stops
+ * being reproducible off the CI runners. That is not theoretical: it is why a build on a
+ * CEST laptop and a build on the (UTC) runners disagreed while every entry's contents,
+ * sizes and CRCs matched to the byte.
+ *
+ * 2020-01-01 00:00:00, encoded as `(date << 16) | time` the way `Utils.fromDate2DOS` does:
+ *   date = ((2020 - 1980) << 9) | (1 << 5) | 1 = 0x5021
+ *   time = (0 << 11) | (0 << 5) | (0 >> 1)     = 0x0000
+ * which is what the runners were already producing, so published checksums still verify.
+ * The date itself carries no meaning; 1980 is the format's floor.
  */
-const FIXED_TIME = new Date(Date.UTC(2020, 0, 1, 0, 0, 0));
+const FIXED_DOS_TIME = 0x5021 << 16;
 
 /**
  * "Version made by": zip format 2.0, host system 3 (Unix). adm-zip picks this from the
@@ -86,7 +98,7 @@ for (const { path } of OPTIONAL_PACKAGE_FILES) {
 const zip = new AdmZip();
 for (const entry of entries) {
   const added = zip.addFile(entry.path, await readFile(join(root, entry.path)), '', MODE_FILE);
-  added.header.time = FIXED_TIME;
+  added.header.timeval = FIXED_DOS_TIME;
   added.header.made = MADE_BY_UNIX_ZIP20;
 }
 

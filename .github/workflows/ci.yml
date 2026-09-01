@@ -25,6 +25,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         node: [20, 22]
+        include:
+          # One leg deliberately off UTC. A zip timestamp is local wall-clock with no zone
+          # attached, so a packer that stamps a `Date` rather than a raw DOS value writes a
+          # different archive on every machine that is not on UTC -- and every runner here is
+          # on UTC, so without this the comparison below cannot see it. It was a laptop in
+          # CEST that found it the first time.
+          - os: ubuntu-latest
+            node: 22
+            tz: Asia/Tokyo
+
+    env:
+      TZ: ${{ matrix.tz || 'UTC' }}
 
     steps:
       # BEFORE the checkout, and that is not a detail. Git for Windows rewrites line endings
@@ -43,7 +55,7 @@ jobs:
 
       # Recorded on purpose: when a platform-only failure turns up, the first question is
       # always which versions it was.
-      - run: node --version && npm --version
+      - run: node --version && npm --version && node -e "console.log('TZ:', Intl.DateTimeFormat().resolvedOptions().timeZone)"
 
       - run: npm ci
 
