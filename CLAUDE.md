@@ -33,7 +33,7 @@ Reload: Settings → Extensions → Reload.
 |--------|-------|
 | Lexical widget `DrawioNode` | `src/lexical/DrawioNode.tsx`, `DrawioComponent.tsx` |
 | Markdown `![alt](./assets/foo.drawio.svg)` | `src/lexical/DrawioTransformer.ts` |
-| Slash `/Draw.io Diagram` | `src/markdown/performSlashDrawioInsert.ts`, `DrawioLexicalExtension.ts` (HIGH priority `drawio.insert`) |
+| Slash `/Draw.io Diagram` | `src/markdown/slashCommandHandlers.ts` → `src/markdown/performSlashDrawioInsert.ts` |
 | Drag-drop / paste `.drawio.svg`, `.drawio.png`, `.drawio` | `src/lexical/DrawioLexicalExtension.ts`, `src/drawio/fileKind.ts` |
 | Edit overlay (embed.diagrams.net) | `src/components/DrawioEditOverlay.tsx`, `src/drawio/DrawioClient.ts` |
 | Custom editor tab | `src/components/DrawioEditor.tsx` |
@@ -59,7 +59,9 @@ Reload: Settings → Extensions → Reload.
 **НЕ импортировать `@nimbalyst/extension-sdk` в runtime** — ломает extension host.  
 Используй локальные типы: `src/types/extension.ts`, `src/types/nimbalyst-runtime.d.ts`.
 
-`@nimbalyst/runtime` — только то, что реально нужно (например `useEditorLifecycle` в `DrawioEditor.tsx`). Не добавляй в `package.json`.
+`@nimbalyst/runtime` — только то, что реально нужно (например `useEditorLifecycle` в `DrawioEditor.tsx`). Не добавляй в `package.json`; в тестах он алиасится на `tests/stubs/nimbalyst-runtime.ts`.
+
+`lexical`, `@lexical/utils`, `@lexical/markdown` — **devDependencies** (с 2026-09-01, версия как у хоста): нужны тестам и `tsc`. В бандл не попадают, они external. Раньше вместо них лежали самописные ambient-заглушки в `src/types/nimbalyst-extension-sdk.d.ts` — файл удалён, не возвращай его.
 
 **НЕ импортировать `@lexical/rich-text`** и другие тяжёлые lexical-плагины без необходимости.
 
@@ -87,7 +89,9 @@ Slash handler вызывается **внутри** `editor.update()` от Compo
 2. Async создать файл в `assets/`
 3. `editor.update()` обновить `src` у ноды
 
-Дублирующий перехват: `createCommand('drawio.insert')` с `COMMAND_PRIORITY_HIGH` в `DrawioLexicalExtension` — надёжнее bridge handler.
+Дублирующего перехвата через `createCommand('drawio.insert')` в `DrawioLexicalExtension` **нет и быть не может** (удалён 2026-09-01): Lexical сопоставляет команды по идентичности объекта, строка в `createCommand` — только метка для devtools, а свой объект для этого id создаёт хост (`ExtensionPluginBridge.getOrCreateCommand`). Обработчик, зарегистрированный на объект из этого файла, не сработает никогда.
+
+Единственный живой путь: хост зовёт экспортированный `slashCommandHandlers.insertDrawioDiagram` → `drawioEditorRegistry` находит сфокусированный редактор → `performSlashDrawioInsert`.
 
 ### 4. Пути к документу
 
@@ -146,7 +150,7 @@ Fallback: `getExtensionContext().services.filesystem`.
 
 ## Production-ready критерии (Definition of Done)
 
-1. **Сборка:** `npm run build` без ошибок; `npm run validate` проходит
+1. **Сборка:** `npm run typecheck`, `npm test`, `npm run build`, `npm run validate` — все зелёные (тот же порядок, что в `bitbucket-pipelines.yml`)
 2. **Форматы:** `.drawio`, `.drawio.svg`, `.drawio.png` — drop, paste, slash, markdown round-trip, Edit, Save, Redraw
 3. **Ошибки:** user-facing через `services.ui.showError`, не silent no-op
 4. **Lexical:** нет error #63 (stale selection), нет nested read/update

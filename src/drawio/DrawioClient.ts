@@ -1,4 +1,4 @@
-import type { DrawioAction, DrawioConfig, DrawioDocumentChange, DrawioEvent } from './types.js';
+import type { DrawioAction, DrawioBytes, DrawioConfig, DrawioDocumentChange, DrawioEvent } from './types.js';
 
 const DRAWIO_ORIGIN = 'https://embed.diagrams.net';
 
@@ -11,7 +11,16 @@ export class DrawioClient {
   private currentXml: string | undefined;
   private isMerging = false;
   private isReady = false;
-  private pendingLoad: string | undefined;
+  /**
+   * A load asked for before the canvas announced itself, kept with the settlers of the
+   * promise the caller is holding. Until 2026-09-01 this was the XML alone: the queued load
+   * resolved its caller straight away and was replayed as `void this.loadXmlLike(xml)`, so a
+   * failure reached nobody -- not a handler, not the caller, only an unhandled rejection in
+   * the console.
+   */
+  private pendingLoad:
+    | { xml: string; resolve: () => void; reject: (error: unknown) => void }
+    | undefined;
   private actionId = 0;
   private responseHandlers = new Map<string, { resolve: (event: DrawioEvent) => void; reject: () => void }>();
 
@@ -49,8 +58,13 @@ export class DrawioClient {
   async loadXmlLike(xmlLike: string): Promise<void> {
     this.currentXml = undefined;
     if (!this.isReady) {
-      this.pendingLoad = xmlLike;
-      return;
+      return new Promise<void>((resolve, reject) => {
+        // A second load before the canvas is up replaces the first. The caller of the
+        // superseded one is resolved rather than rejected: its content was not loaded, but
+        // that is because something newer took its place, which is not a failure to report.
+        this.pendingLoad?.resolve();
+        this.pendingLoad = { xml: xmlLike, resolve, reject };
+      });
     }
     this.sendAction({ action: 'load', xml: xmlLike, autosave: 1 });
     await this.getXml();
@@ -73,7 +87,7 @@ export class DrawioClient {
     }
   }
 
-  async exportAsSvgWithEmbeddedXml(): Promise<Uint8Array> {
+  async exportAsSvgWithEmbeddedXml(): Promise<DrawioBytes> {
     const response = await this.sendActionWaitForResponse({ action: 'export', format: 'xmlsvg' });
     if (response.event !== 'export' || !response.data) {
       throw new Error('Failed to export draw.io SVG');
@@ -81,7 +95,7 @@ export class DrawioClient {
     return decodeDataUrl(response.data);
   }
 
-  async exportAsPngWithEmbeddedXml(): Promise<Uint8Array> {
+  async exportAsPngWithEmbeddedXml(): Promise<DrawioBytes> {
     const response = await this.sendActionWaitForResponse({ action: 'export', format: 'xmlpng' });
     if (response.event !== 'export' || !response.data) {
       throw new Error('Failed to export draw.io PNG');
@@ -109,6 +123,11 @@ export class DrawioClient {
       handler.reject();
     }
     this.responseHandlers.clear();
+    // A load still waiting for a canvas that is now gone will never happen, and the caller
+    // would otherwise wait for it forever.
+    const pending = this.pendingLoad;
+    this.pendingLoad = undefined;
+    pending?.reject(new Error('Draw.io canvas was closed before the diagram loaded'));
   }
 
   private sendAction(action: DrawioAction): void {
@@ -162,9 +181,10 @@ export class DrawioClient {
         handler();
       }
       if (this.pendingLoad !== undefined) {
-        const xml = this.pendingLoad;
+        const pending = this.pendingLoad;
         this.pendingLoad = undefined;
-        void this.loadXmlLike(xml);
+        // Settles the promise the caller has been holding since before the canvas was up.
+        this.loadXmlLike(pending.xml).then(pending.resolve, pending.reject);
       }
       return;
     }
@@ -219,7 +239,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function decodeDataUrl(dataUrl: string): Uint8Array {
+function decodeDataUrl(dataUrl: string): DrawioBytes {
   const comma = dataUrl.indexOf(',');
   if (comma < 0) {
     throw new Error('Invalid data URL from draw.io export');

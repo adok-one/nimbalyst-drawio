@@ -4,8 +4,6 @@ import {
   $insertNodes,
   $isRangeSelection,
   COMMAND_PRIORITY_EDITOR,
-  COMMAND_PRIORITY_HIGH,
-  createCommand,
   defineExtension,
 } from 'lexical';
 import { mergeRegister, $dfs } from '@lexical/utils';
@@ -13,7 +11,6 @@ import { isDrawioAssetPath, isDrawioUploadFile, shouldPreserveDrawioFilename } f
 import { getExtensionContext } from '../context.js';
 import { rememberDroppedFiles } from '../markdown/pendingUploadName.js';
 import { getDocumentPathFromElement } from '../utils/resolveDrawioAssetUrl.js';
-import { performSlashDrawioInsert } from '../markdown/performSlashDrawioInsert.js';
 import { uploadDrawioImagePreserveName, type UploadedDrawioImage } from '../markdown/drawioUpload.js';
 import { INSERT_DRAWIO_COMMAND } from './DrawioCommands.js';
 import { $createDrawioNode } from './DrawioNode.js';
@@ -24,14 +21,26 @@ import {
 } from './drawioEditorRegistry.js';
 import { $migrateDrawioImageNodes } from './migrateDrawioImageNodes.js';
 
-const DRAWIO_SLASH_COMMAND = createCommand<void>('drawio.insert');
+/**
+ * There is no second, in-editor registration of the `drawio.insert` slash command here, and
+ * there cannot be one. Lexical matches commands by OBJECT IDENTITY -- the string given to
+ * `createCommand` is only a devtools label -- and the host builds its own object for that id
+ * (`ExtensionPluginBridge.getOrCreateCommand`). A command created in this file could only be
+ * dispatched from this file, so a handler registered against it never runs.
+ *
+ * The slash command reaches the extension the one way it can: the host calls the exported
+ * `slashCommandHandlers.insertDrawioDiagram`, which finds the focused editor through
+ * `drawioEditorRegistry` and calls `performSlashDrawioInsert`. Until 2026-09-01 an inert
+ * duplicate of that registration also stood here, described as the more reliable of the two.
+ */
 
 function $hasDrawioImageNodesToMigrate(): boolean {
   for (const { node } of $dfs($getRoot())) {
+    const candidate = node as typeof node & { getSrc?: () => string };
     if (
       node.getType() === 'image' &&
-      typeof (node as { getSrc?: () => string }).getSrc === 'function' &&
-      isDrawioAssetPath((node as { getSrc: () => string }).getSrc())
+      typeof candidate.getSrc === 'function' &&
+      isDrawioAssetPath(candidate.getSrc())
     ) {
       return true;
     }
@@ -175,14 +184,6 @@ export const DrawioLexicalExtension = defineExtension({
           return true;
         },
         COMMAND_PRIORITY_EDITOR,
-      ),
-      editor.registerCommand(
-        DRAWIO_SLASH_COMMAND,
-        () => {
-          performSlashDrawioInsert(editor);
-          return true;
-        },
-        COMMAND_PRIORITY_HIGH,
       ),
       editor.registerRootListener((rootElement, prevElement) => {
         prevElement?.removeEventListener('drop', onDrop, true);

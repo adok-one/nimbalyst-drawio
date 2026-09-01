@@ -17,6 +17,14 @@ function toWorkspaceRelative(absoluteOrRelative: string): string {
     return path.replace(/^\.\//, '');
   }
   const ws = workspacePath.replace(/\\/g, '/').replace(/\/$/, '');
+  // The workspace directory itself, which is the folder of any document at the top of the
+  // workspace. Without this case `startsWith(ws + '/')` never matches it and the path comes
+  // back absolute: `create-document` then resolves it against the workspace a second time
+  // and writes the diagram to `<ws>/<ws>/assets/`, one level below where the markdown link
+  // points and where the widget looks for it.
+  if (path === ws) {
+    return '';
+  }
   if (path.startsWith(`${ws}/`)) {
     return path.slice(ws.length + 1);
   }

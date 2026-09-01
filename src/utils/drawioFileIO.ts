@@ -1,6 +1,7 @@
 import { getExtensionContext } from '../context.js';
 import type { DrawioClient } from '../drawio/DrawioClient.js';
 import { getDrawioFileKind, type DrawioFileKind } from '../drawio/fileKind.js';
+import type { DrawioBytes } from '../drawio/types.js';
 import { normalizeDrawioLoadXml } from '../drawio/templates.js';
 
 type ReadFileResult = {
@@ -26,7 +27,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBytes(base64: string): Uint8Array {
+function base64ToBytes(base64: string): DrawioBytes {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -37,7 +38,7 @@ function base64ToBytes(base64: string): Uint8Array {
 
 export async function readDrawioFile(
   absolutePath: string,
-): Promise<{ kind: DrawioFileKind; content: string | Uint8Array }> {
+): Promise<{ kind: DrawioFileKind; content: string | DrawioBytes }> {
   const kind = getDrawioFileKind(absolutePath);
   const electronAPI = (window as { electronAPI?: ElectronApi }).electronAPI;
 
