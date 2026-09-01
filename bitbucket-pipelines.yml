@@ -1,0 +1,92 @@
+# The gates and the release, on Bitbucket Pipelines.
+#
+# This extension is public and lives on GitHub; the pipeline here exists for one reason —
+# the AltusNova EAI installer (`eai-nimbalyst-plugin`, private) installs this extension
+# beside itself, in one command, from a Bitbucket Downloads shelf. A private installer
+# cannot reach GitHub Releases with the Bitbucket credentials the person already has, so
+# the archive it needs is built and parked HERE, by the same rules the eai-flow repository
+# uses: `.nimext` + `.sha256`, named after the manifest version, published on a `v*` tag.
+#
+# Mirror to this repository is push-only; GitHub stays the source of truth and the
+# marketplace entry.
+
+image: node:20
+
+definitions:
+  caches:
+    # `npm ci` deletes node_modules and reinstalls, so caching the modules themselves buys
+    # nothing; the download cache is what it reads.
+    npmdownload: ~/.npm
+
+  steps:
+    - step: &gates
+        name: Gates
+        caches:
+          - npmdownload
+        script:
+          - node --version
+          # Granular rather than one command: when this goes red, the line that failed is
+          # the diagnosis. `validate` comes after `build` because it reads `manifest.main`,
+          # which the build produces.
+          - npm ci
+          - npm run typecheck
+          - npm test
+          - npm run build
+          - npm run validate
+
+    - step: &release
+        name: Release - pack and publish the .nimext
+        caches:
+          - npmdownload
+        artifacts:
+          # Also kept on the pipeline itself, so a failed upload is not a lost build.
+          - release/**
+        script:
+          # The cheap checks first, before an install is paid for.
+          #
+          # The tag IS the version. `manifest.json` is the source of truth (the host reads
+          # it, the archive is named after it), so a tag that disagrees with it would
+          # publish a file whose name, whose manifest and whose git history tell three
+          # different stories. `scripts/bump-version.mjs` is what keeps them together.
+          - export VERSION=$(node -p "require('./manifest.json').version")
+          - >
+            test "$BITBUCKET_TAG" = "v$VERSION" || {
+            echo "tag $BITBUCKET_TAG does not match manifest.json version $VERSION -";
+            echo "run: npm run bump:version -- <version>, commit, then tag v<version>";
+            exit 1; }
+          - >
+            test -n "${BB_DOWNLOADS_TOKEN:-}" || {
+            echo "BB_DOWNLOADS_TOKEN is not set - a repository access token with";
+            echo "repository:write is what uploads to Downloads";
+            exit 1; }
+          - npm ci
+          # The gates already passed in the previous step; this one only has to produce the
+          # artefact - and to check it, with the same zip reader the host uses.
+          - npm run pack:nimext
+          - npm run validate:pack
+          # Downloads rather than pipeline artifacts: artifacts expire, and the shelf people
+          # install from must still hold v0.5.2 when v0.9.0 is current.
+          - export ARCHIVE="nimbalyst-drawio-$VERSION.nimext"
+          - >
+            curl -sS --fail-with-body -X POST
+            -H "Authorization: Bearer $BB_DOWNLOADS_TOKEN"
+            "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/downloads"
+            -F files=@"release/$ARCHIVE"
+          - >
+            curl -sS --fail-with-body -X POST
+            -H "Authorization: Bearer $BB_DOWNLOADS_TOKEN"
+            "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/downloads"
+            -F files=@"release/$ARCHIVE.sha256"
+          - echo "published $ARCHIVE to the repository's Downloads"
+
+pipelines:
+  default:
+    - step: *gates
+
+  # A release is a tag and nothing else. The gates run first and in their own step: an
+  # artefact published from a red build is worse than no artefact, and having them here
+  # rather than inside the release step keeps one copy of the gate list, not two.
+  tags:
+    'v*':
+      - step: *gates
+      - step: *release
